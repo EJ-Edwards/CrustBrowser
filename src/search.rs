@@ -1,6 +1,6 @@
 // This module provides functions to build search URLs for various search engines
 use url::Url;
-
+use colored::Colorize;
 
 // This module handles building search URLs for different search engines
 const GOOGLE: &str = "https://www.google.com/search";
@@ -23,8 +23,9 @@ pub fn search(query: &str) -> String {
     }
 }
 
-// Shows search URLs for all supported engines
-pub fn search_all_engines(query: &str) {
+// Shows search URLs for all supported engines and returns the Google URL
+// so the browser can auto-navigate to it
+pub fn search_all_engines(query: &str) -> Option<String> {
     let engines = [
         ("Google", GOOGLE),
         ("Bing", BING),
@@ -32,11 +33,24 @@ pub fn search_all_engines(query: &str) {
         ("Yahoo", YAHOO),
     ];
 
+    println!("\n  {}", "Search Results:".yellow().bold());
+    println!("  {}", "───────────────────────────────────────".dimmed());
+
+    let mut first_url = None;
+
     // Build and print the search URL for each engine
-    for (name, base_url) in &engines {
+    for (i, (name, base_url)) in engines.iter().enumerate() {
         match build_search_url(base_url, query) {
-            Ok(search_url) => println!("  {} → {}", name, search_url),
+            Ok(search_url) => {
+                println!("  {} {}  {}", format!("[{}]", i + 1).green().bold(), name.white().bold(), search_url.dimmed());
+                if first_url.is_none() {
+                    first_url = Some(search_url);
+                }
+            }
             Err(e) => println!("  {} → Error: {}", name, e),
         }
     }
+    println!();
+
+    first_url
 }
