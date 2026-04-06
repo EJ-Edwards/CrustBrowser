@@ -1,0 +1,13 @@
+{
+  "name": "crust-browser-cli",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "CLI frontend for CrustBrowser",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0"
+  }
+}
