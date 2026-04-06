@@ -1,6 +1,6 @@
 {
   "name": "crust-browser-cli",
-  "version": "0.2.5",
+  "version": "0.2.9",
   "type": "module",
   "description": "CLI frontend for CrustBrowser",
   "main": "index.js",

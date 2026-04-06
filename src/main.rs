@@ -60,13 +60,13 @@ fn save_data(data: &BrowserData) {
     }
 }
 
-// Helper: fetches a URL, parses the HTML, renders it, and returns the parsed page
-fn navigate(url: &str) -> Option<ParsedPage> {
+// Helper: fetches a URL, parses the HTML, renders it, and returns the parsed page + raw HTML
+fn navigate(url: &str) -> Option<(ParsedPage, String)> {
     match network::get(url) {
         Ok(html) => {
             let page = parsar::parse_html(&html);
             render::render_page(&page);
-            Some(page)
+            Some((page, html))
         }
         Err(e) => {
             println!("  {} {}", "Error:".red().bold(), e);
@@ -83,6 +83,7 @@ fn main() {
     let mut history: Vec<String> = Vec::new();      // All URLs visited (in order)
     let mut history_index: isize = -1;               // Where we are in history (-1 = nowhere)
     let mut last_page: Option<ParsedPage> = None;    // The last page we viewed (for links/refresh)
+    let mut last_html: Option<String> = None;        // Raw HTML of the last page (for source/save)
     let mut current_url: Option<String> = None;      // The URL we're currently on
     let mut data = load_data();                       // Load saved bookmarks from disk
 
@@ -113,13 +114,14 @@ fn main() {
             Command::Go(raw_url) => {
                 let url = network::normalize_url(&raw_url);
                 println!("  {} {}", "Navigating to:".cyan(), url);
-                if let Some(page) = navigate(&url) {
+                if let Some((page, html)) = navigate(&url) {
                     // Add to history and update state
                     history.truncate((history_index + 1) as usize);
                     history.push(url.clone());
                     history_index = (history.len() as isize) - 1;
                     current_url = Some(url);
                     last_page = Some(page);
+                    last_html = Some(html);
                 }
             }
 
@@ -128,12 +130,13 @@ fn main() {
                 println!("  {} {}", "Searching for:".cyan(), query);
                 if let Some(search_url) = search::search_all_engines(&query) {
                     println!("  {}", "Auto-navigating to DuckDuckGo results...".dimmed());
-                    if let Some(page) = navigate(&search_url) {
+                    if let Some((page, html)) = navigate(&search_url) {
                         history.truncate((history_index + 1) as usize);
                         history.push(search_url.clone());
                         history_index = (history.len() as isize) - 1;
                         current_url = Some(search_url);
                         last_page = Some(page);
+                        last_html = Some(html);
                     }
                 }
             }
@@ -164,12 +167,13 @@ fn main() {
                             network::normalize_url(href)
                         };
                         println!("  {} {}", "Navigating to:".cyan(), full_url);
-                        if let Some(page) = navigate(&full_url) {
+                        if let Some((page, html)) = navigate(&full_url) {
                             history.truncate((history_index + 1) as usize);
                             history.push(full_url.clone());
                             history_index = (history.len() as isize) - 1;
                             current_url = Some(full_url);
                             last_page = Some(page);
+                            last_html = Some(html);
                         }
                     }
                 } else {
@@ -183,9 +187,10 @@ fn main() {
                     history_index -= 1;
                     let url = history[history_index as usize].clone();
                     println!("  {} {}", "Going back to:".cyan(), url);
-                    if let Some(page) = navigate(&url) {
+                    if let Some((page, html)) = navigate(&url) {
                         current_url = Some(url);
                         last_page = Some(page);
+                        last_html = Some(html);
                     }
                 } else {
                     println!("  {}", "Nothing to go back to.".yellow());
@@ -198,9 +203,10 @@ fn main() {
                     history_index += 1;
                     let url = history[history_index as usize].clone();
                     println!("  {} {}", "Going forward to:".cyan(), url);
-                    if let Some(page) = navigate(&url) {
+                    if let Some((page, html)) = navigate(&url) {
                         current_url = Some(url);
                         last_page = Some(page);
+                        last_html = Some(html);
                     }
                 } else {
                     println!("  {}", "Nothing to go forward to.".yellow());
@@ -212,8 +218,9 @@ fn main() {
                 if let Some(ref url) = current_url {
                     let url = url.clone();
                     println!("  {} {}", "Refreshing:".cyan(), url);
-                    if let Some(page) = navigate(&url) {
+                    if let Some((page, html)) = navigate(&url) {
                         last_page = Some(page);
+                        last_html = Some(html);
                     }
                 } else {
                     println!("  {}", "No page to refresh.".yellow());
@@ -231,6 +238,42 @@ fn main() {
                         for (i, (text, url)) in page.links.iter().enumerate() {
                             let display = if text.is_empty() { url } else { text };
                             println!("    {} {}  {}", format!("[{}]", i + 1).green().bold(), display, url.dimmed());
+                        }
+                        println!();
+                    }
+                } else {
+                    println!("  {}", "Navigate to a page first.".yellow());
+                }
+            }
+
+            // Show only headings on the current page
+            Command::Headings => {
+                if let Some(ref page) = last_page {
+                    if page.headings.is_empty() {
+                        println!("  {}", "No headings on this page.".yellow());
+                    } else {
+                        println!("\n  {}", "Headings:".yellow().bold());
+                        println!("  {}", "───────────────────────────────────────".dimmed());
+                        for heading in &page.headings {
+                            println!("    {} {}", "▸".cyan(), heading);
+                        }
+                        println!();
+                    }
+                } else {
+                    println!("  {}", "Navigate to a page first.".yellow());
+                }
+            }
+
+            // Show only the text content of the page
+            Command::Text => {
+                if let Some(ref page) = last_page {
+                    if page.text.is_empty() {
+                        println!("  {}", "No text content on this page.".yellow());
+                    } else {
+                        println!("\n  {}", "Page Text:".yellow().bold());
+                        println!("  {}", "───────────────────────────────────────".dimmed());
+                        for paragraph in &page.text {
+                            println!("    {}", paragraph);
                         }
                         println!();
                     }
@@ -278,6 +321,101 @@ fn main() {
                 } else {
                     println!("  {}", "Navigate to a page first before bookmarking.".yellow());
                 }
+            }
+
+            // Delete a bookmark by number
+            Command::DelBookmark(num) => {
+                if num == 0 || num > data.bookmarks.len() {
+                    println!("  {} Bookmark #{} doesn't exist. You have {} bookmarks.",
+                        "Error:".red().bold(), num, data.bookmarks.len());
+                } else {
+                    let (name, url) = data.bookmarks.remove(num - 1);
+                    save_data(&data);
+                    println!("  {} Removed '{}' ({})", "Deleted!".red().bold(), name, url);
+                }
+            }
+
+            // View raw HTML source of the current page
+            Command::Source => {
+                if let Some(ref html) = last_html {
+                    println!("\n  {}", "Page Source:".yellow().bold());
+                    println!("  {}", "───────────────────────────────────────".dimmed());
+                    // Show first 200 lines to avoid flooding the terminal
+                    for (i, line) in html.lines().take(200).enumerate() {
+                        println!("  {} {}", format!("{:>4}", i + 1).dimmed(), line);
+                    }
+                    let total = html.lines().count();
+                    if total > 200 {
+                        println!("  {}", format!("... ({} more lines, use 'save' to export full source)", total - 200).dimmed());
+                    }
+                    println!();
+                } else {
+                    println!("  {}", "Navigate to a page first.".yellow());
+                }
+            }
+
+            // Save page content to a file
+            Command::Save(filename) => {
+                if let Some(ref page) = last_page {
+                    let mut content = String::new();
+                    content.push_str(&format!("Title: {}\n\n", page.title));
+                    if !page.headings.is_empty() {
+                        content.push_str("Headings:\n");
+                        for h in &page.headings {
+                            content.push_str(&format!("  - {}\n", h));
+                        }
+                        content.push('\n');
+                    }
+                    if !page.links.is_empty() {
+                        content.push_str("Links:\n");
+                        for (text, url) in &page.links {
+                            let display = if text.is_empty() { url } else { text };
+                            content.push_str(&format!("  {} → {}\n", display, url));
+                        }
+                        content.push('\n');
+                    }
+                    if !page.text.is_empty() {
+                        content.push_str("Content:\n");
+                        for p in &page.text {
+                            content.push_str(&format!("  {}\n", p));
+                        }
+                    }
+                    match fs::write(&filename, &content) {
+                        Ok(_) => println!("  {} Saved to '{}'", "Done!".green().bold(), filename),
+                        Err(e) => println!("  {} {}", "Error:".red().bold(), e),
+                    }
+                } else {
+                    println!("  {}", "Navigate to a page first.".yellow());
+                }
+            }
+
+            // Show the current URL
+            Command::Url => {
+                if let Some(ref url) = current_url {
+                    println!("  {} {}", "Current URL:".cyan(), url);
+                } else {
+                    println!("  {}", "No page loaded.".yellow());
+                }
+            }
+
+            // Navigate to homepage
+            Command::Home => {
+                let home_url = "https://html.duckduckgo.com/";
+                println!("  {} {}", "Going home:".cyan(), home_url);
+                if let Some((page, html)) = navigate(home_url) {
+                    history.truncate((history_index + 1) as usize);
+                    history.push(home_url.to_string());
+                    history_index = (history.len() as isize) - 1;
+                    current_url = Some(home_url.to_string());
+                    last_page = Some(page);
+                    last_html = Some(html);
+                }
+            }
+
+            // Clear the terminal screen
+            Command::Clear => {
+                print!("\x1B[2J\x1B[1;1H");
+                io::stdout().flush().ok();
             }
 
             // Show the help menu

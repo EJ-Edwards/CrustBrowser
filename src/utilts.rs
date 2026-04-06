@@ -23,9 +23,17 @@ pub enum Command {
     Forward,             // forward — go to next page
     Refresh,             // refresh — reload current page
     Links,               // links — list all links on the page
+    Headings,            // headings — show just the headings
+    Text,                // text — show just the text content
     History,             // history — show browsing history
     Bookmarks,           // bookmarks — show saved bookmarks
     Bookmark(String),    // bookmark <name> — save current page
+    DelBookmark(usize),  // delbookmark <#> — delete a bookmark
+    Source,              // source — view raw HTML
+    Save(String),        // save <file> — save page to a file
+    Url,                 // url — print current URL
+    Home,                // home — go to homepage
+    Clear,               // clear — clear the screen
     Help,                // help — show available commands
     Quit,                // quit/exit — close the browser
     Unknown(String),     // anything unrecognized
@@ -68,6 +76,8 @@ pub fn parse_command(input: &str) -> Command {
         "forward" | "f"    => Command::Forward,
         "refresh" | "r"    => Command::Refresh,
         "links" | "l"      => Command::Links,
+        "headings" | "hd"  => Command::Headings,
+        "text" | "t"       => Command::Text,
         "history" | "h"    => Command::History,
         "bookmarks" | "bm" => Command::Bookmarks,
         "bookmark" => {
@@ -77,6 +87,24 @@ pub fn parse_command(input: &str) -> Command {
                 Command::Bookmark(arg)
             }
         }
+        "delbookmark" | "dbm" => {
+            if let Ok(num) = arg.parse::<usize>() {
+                Command::DelBookmark(num)
+            } else {
+                Command::Unknown("Usage: delbookmark <number>".to_string())
+            }
+        }
+        "source" | "src"   => Command::Source,
+        "save" => {
+            if arg.is_empty() {
+                Command::Save("page.txt".to_string())
+            } else {
+                Command::Save(arg)
+            }
+        }
+        "url"              => Command::Url,
+        "home"             => Command::Home,
+        "clear" | "cls"    => Command::Clear,
         "help" | "?"       => Command::Help,
         "quit" | "exit" | "q" => Command::Quit,
         _ => Command::Unknown(trimmed.to_string()),
@@ -94,11 +122,19 @@ pub fn show_help() {
     println!("  {}           {}", "forward".yellow().bold(), "Go to next page");
     println!("  {}           {}", "refresh".yellow().bold(), "Reload current page");
     println!("  {}             {}", "links".yellow().bold(), "List links on page");
+    println!("  {}          {}", "headings".yellow().bold(), "Show page headings");
+    println!("  {}              {}", "text".yellow().bold(), "Show page text only");
     println!("  {}           {}", "history".yellow().bold(), "Show browsing history");
     println!("  {}         {}", "bookmarks".yellow().bold(), "Show saved bookmarks");
     println!("  {}  {}  {}", "bookmark".yellow().bold(), "<name>".dimmed(), "Bookmark current page");
+    println!("  {}  {}  {}", "delbookmark".yellow().bold(), "<#>".dimmed(), "Delete a bookmark");
+    println!("  {}            {}", "source".yellow().bold(), "View page HTML source");
+    println!("  {}  {}   {}", "save".yellow().bold(), "<file>".dimmed(), "Save page to a file");
+    println!("  {}               {}", "url".yellow().bold(), "Show current URL");
+    println!("  {}              {}", "home".yellow().bold(), "Go to homepage");
+    println!("  {}             {}", "clear".yellow().bold(), "Clear the screen");
     println!("  {}              {}", "help".yellow().bold(), "Show this help menu");
     println!("  {}              {}", "quit".yellow().bold(), "Exit the browser");
-    println!("\n  {}", "Shortcuts: g, s, c, b, f, r, l, h, bm, q, ?".dimmed());
+    println!("\n  {}", "Shortcuts: g, s, c, b, f, r, l, hd, t, h, bm, dbm, src, cls, q, ?".dimmed());
     println!();
 }

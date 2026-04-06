@@ -104,19 +104,28 @@ cargo run
 
 ## Commands
 
-| Command | Description |
-|---|---|
-| `go <url>` | Navigate to a URL |
-| `search <query>` | Search across all engines |
-| `back` | Go to previous page |
-| `forward` | Go to next page |
-| `refresh` | Reload current page |
-| `links` | List all links on the page |
-| `history` | Show browsing history |
-| `bookmarks` | Show saved bookmarks |
-| `bookmark <name>` | Save current page as a bookmark |
-| `help` | Show available commands |
-| `quit` / `exit` | Close the browser |
+| Command | Shortcut | Description |
+|---|---|---|
+| `go <url>` | `g` | Navigate to a URL |
+| `search <query>` | `s` | Search across all engines |
+| `click <#>` | `c` | Click a numbered link on the page |
+| `back` | `b` | Go to previous page |
+| `forward` | `f` | Go to next page |
+| `refresh` | `r` | Reload current page |
+| `links` | `l` | List all links on the page |
+| `headings` | `hd` | Show page headings |
+| `text` | `t` | Show page text only |
+| `history` | `h` | Show browsing history |
+| `bookmarks` | `bm` | Show saved bookmarks |
+| `bookmark <name>` | | Save current page as a bookmark |
+| `delbookmark <#>` | `dbm` | Delete a bookmark by number |
+| `source` | `src` | View raw HTML source |
+| `save <file>` | | Save page content to a file |
+| `url` | | Show the current URL |
+| `home` | | Navigate to homepage |
+| `clear` | `cls` | Clear the terminal screen |
+| `help` | `?` | Show available commands |
+| `quit` / `exit` | `q` | Close the browser |
 
 ## Dependencies
 
