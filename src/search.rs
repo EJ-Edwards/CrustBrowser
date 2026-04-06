@@ -5,7 +5,7 @@ use colored::Colorize;
 // This module handles building search URLs for different search engines
 const GOOGLE: &str = "https://www.google.com/search";
 const BING: &str = "https://www.bing.com/search";
-const DUCKDUCKGO: &str = "https://www.duckduckgo.com/";
+const DUCKDUCKGO: &str = "https://html.duckduckgo.com/html/";
 const YAHOO: &str = "https://www.yahoo.com/search";
 
 // Builds a search URL by adding the query as a "q" parameter to the base URL
@@ -15,21 +15,13 @@ pub fn build_search_url(base_url: &str, query: &str) -> Result<String, url::Pars
     Ok(url.to_string())
 }
 
-// Convenience function to get a search URL for Google
-pub fn search(query: &str) -> String {
-    match build_search_url(GOOGLE, query) {
-        Ok(search_url) => search_url,
-        Err(e) => format!("Error building search URL: {}", e),
-    }
-}
-
 // Shows search URLs for all supported engines and returns the Google URL
 // so the browser can auto-navigate to it
 pub fn search_all_engines(query: &str) -> Option<String> {
     let engines = [
+        ("DuckDuckGo", DUCKDUCKGO),
         ("Google", GOOGLE),
         ("Bing", BING),
-        ("DuckDuckGo", DUCKDUCKGO),
         ("Yahoo", YAHOO),
     ];
 

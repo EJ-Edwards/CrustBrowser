@@ -1,5 +1,6 @@
 // scraper is the library we use to read and search through HTML
 use scraper::{Html, Selector};
+use url::Url;
 
 // This struct holds all the useful stuff we pull out of a web page
 pub struct ParsedPage {
@@ -36,13 +37,15 @@ pub fn parse_html(html: &str) -> ParsedPage {
     // --- Get all links ---
     // Look for <a href="..."> tags (clickable links)
     // We grab both the visible text and the URL it points to
+    // Also resolves redirect URLs (e.g. Google's /url?q=...) to the real destination
     let links = {
         let sel = Selector::parse("a[href]").unwrap();
         document.select(&sel)
             .map(|el| {
                 let text = el.text().collect::<String>().trim().to_string();
                 let href = el.value().attr("href").unwrap_or("").to_string();
-                (text, href)
+                let resolved = resolve_redirect(&href);
+                (text, resolved)
             })
             .filter(|(_, href)| !href.is_empty()) // skip links with no URL
             .collect()
@@ -60,4 +63,18 @@ pub fn parse_html(html: &str) -> ParsedPage {
 
     // Bundle everything up and return it
     ParsedPage { title, headings, links, text }
+}
+
+// Extracts the real URL from search engine redirect links
+// e.g. "/url?q=https://example.com&sa=..." → "https://example.com"
+// Also handles DuckDuckGo's "//duckduckgo.com/l/?uddg=https%3A..." redirects
+fn resolve_redirect(href: &str) -> String {
+    if let Ok(parsed) = Url::parse(&format!("https://placeholder{}", href)) {
+        for (key, val) in parsed.query_pairs() {
+            if (key == "q" || key == "uddg") && (val.starts_with("http://") || val.starts_with("https://")) {
+                return val.to_string();
+            }
+        }
+    }
+    href.to_string()
 }

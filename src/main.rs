@@ -126,13 +126,13 @@ fn main() {
             // User typed "search <query>" — show search URLs and auto-navigate to Google
             Command::Search(query) => {
                 println!("  {} {}", "Searching for:".cyan(), query);
-                if let Some(google_url) = search::search_all_engines(&query) {
-                    println!("  {}", "Auto-navigating to Google results...".dimmed());
-                    if let Some(page) = navigate(&google_url) {
+                if let Some(search_url) = search::search_all_engines(&query) {
+                    println!("  {}", "Auto-navigating to DuckDuckGo results...".dimmed());
+                    if let Some(page) = navigate(&search_url) {
                         history.truncate((history_index + 1) as usize);
-                        history.push(google_url.clone());
+                        history.push(search_url.clone());
                         history_index = (history.len() as isize) - 1;
-                        current_url = Some(google_url);
+                        current_url = Some(search_url);
                         last_page = Some(page);
                     }
                 }
