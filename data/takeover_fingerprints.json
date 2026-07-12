@@ -1,0 +1,19 @@
+{
+  "_comment": "Canonical subdomain-takeover fingerprints (seeded from can-i-take-over-xyz). Shared, byte-for-byte, between PortIntel (Python) and CrustBrowser (Rust). 'cnames' are CNAME suffixes that route to the service; 'fingerprints' are 'unclaimed resource' response strings; 'nxdomain' marks services where the target no longer resolving is itself the takeover signal.",
+  "services": [
+    { "service": "GitHub Pages", "cnames": [".github.io"], "fingerprints": ["There isn't a GitHub Pages site here"], "nxdomain": false },
+    { "service": "AWS S3", "cnames": [".s3.amazonaws.com", ".s3-website", ".amazonaws.com"], "fingerprints": ["NoSuchBucket", "The specified bucket does not exist"], "nxdomain": false },
+    { "service": "Heroku", "cnames": [".herokuapp.com", ".herokudns.com", ".herokussl.com"], "fingerprints": ["No such app", "herokucdn.com/error-pages/no-such-app.html"], "nxdomain": false },
+    { "service": "Fastly", "cnames": [".fastly.net"], "fingerprints": ["Fastly error: unknown domain"], "nxdomain": false },
+    { "service": "Shopify", "cnames": [".myshopify.com"], "fingerprints": ["Sorry, this shop is currently unavailable"], "nxdomain": false },
+    { "service": "Surge.sh", "cnames": [".surge.sh"], "fingerprints": ["project not found"], "nxdomain": false },
+    { "service": "Bitbucket", "cnames": [".bitbucket.io"], "fingerprints": ["Repository not found"], "nxdomain": false },
+    { "service": "Ghost", "cnames": [".ghost.io"], "fingerprints": ["The thing you were looking for is no longer here", "Domain error"], "nxdomain": false },
+    { "service": "Zendesk", "cnames": [".zendesk.com"], "fingerprints": ["Help Center Closed"], "nxdomain": false },
+    { "service": "Pantheon", "cnames": [".pantheonsite.io"], "fingerprints": ["The gods are wise", "404 error unknown site!"], "nxdomain": false },
+    { "service": "Tumblr", "cnames": [".domains.tumblr.com"], "fingerprints": ["Whatever you were looking for doesn't currently exist at this address"], "nxdomain": false },
+    { "service": "Microsoft Azure", "cnames": [".azurewebsites.net", ".cloudapp.net", ".trafficmanager.net", ".blob.core.windows.net"], "fingerprints": ["404 Web Site not found"], "nxdomain": true },
+    { "service": "Wordpress", "cnames": [".wordpress.com"], "fingerprints": ["Do you want to register"], "nxdomain": false },
+    { "service": "Cargo Collective", "cnames": [".cargocollective.com"], "fingerprints": ["404 Not Found"], "nxdomain": false }
+  ]
+}

@@ -30,6 +30,8 @@ pub enum Command {
     Bookmark(String),    // bookmark <name> — save current page
     DelBookmark(usize),  // delbookmark <#> — delete a bookmark
     Source,              // source — view raw HTML
+    Ip(String),          // ip <addr> — RDAP/WHOIS lookup + known-host check
+    Takeover(String),    // takeover <host> — subdomain-takeover fingerprint check
     Save(String),        // save <file> — save page to a file
     Url,                 // url — print current URL
     Home,                // home — go to homepage
@@ -95,6 +97,22 @@ pub fn parse_command(input: &str) -> Command {
             }
         }
         "source" | "src"   => Command::Source,
+        // IP intel — "ip", "whois", or "ipinfo"
+        "ip" | "whois" | "ipinfo" => {
+            if arg.is_empty() {
+                Command::Unknown("Usage: ip <address>".to_string())
+            } else {
+                Command::Ip(arg)
+            }
+        }
+        // Subdomain-takeover check — "takeover" or "to"
+        "takeover" | "to" => {
+            if arg.is_empty() {
+                Command::Unknown("Usage: takeover <hostname>".to_string())
+            } else {
+                Command::Takeover(arg)
+            }
+        }
         "save" => {
             if arg.is_empty() {
                 Command::Save("page.txt".to_string())
@@ -129,6 +147,8 @@ pub fn show_help() {
     println!("  {}  {}  {}", "bookmark".yellow().bold(), "<name>".dimmed(), "Bookmark current page");
     println!("  {}  {}  {}", "delbookmark".yellow().bold(), "<#>".dimmed(), "Delete a bookmark");
     println!("  {}            {}", "source".yellow().bold(), "View page HTML source");
+    println!("  {}  {}   {}", "ip".yellow().bold(), "<addr>".dimmed(), "WHOIS/RDAP + known-host check");
+    println!("  {}  {}   {}", "takeover".yellow().bold(), "<host>".dimmed(), "Subdomain-takeover check");
     println!("  {}  {}   {}", "save".yellow().bold(), "<file>".dimmed(), "Save page to a file");
     println!("  {}               {}", "url".yellow().bold(), "Show current URL");
     println!("  {}              {}", "home".yellow().bold(), "Go to homepage");

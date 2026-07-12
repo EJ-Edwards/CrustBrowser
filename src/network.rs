@@ -37,3 +37,23 @@ pub fn get(url: &str) -> Result<String, String> {
         .map_err(|e| format!("Failed to read page content: {}", e))
 }
 
+// Like `get`, but returns the body even on non-2xx responses. Subdomain-takeover
+// fingerprints live in error pages (a dangling GitHub Pages host answers 404 with
+// "There isn't a GitHub Pages site here"), so the takeover check needs the body
+// regardless of status.
+pub fn get_with_status(url: &str) -> Result<(u16, String), String> {
+    let client = Client::builder()
+        .user_agent("CrustBrowser/0.1.0")
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let response = client.get(url).send()
+        .map_err(|e| format!("Could not reach '{}': {}", url, e))?;
+
+    let status = response.status().as_u16();
+    let body = response.text()
+        .map_err(|e| format!("Failed to read page content: {}", e))?;
+    Ok((status, body))
+}
+
