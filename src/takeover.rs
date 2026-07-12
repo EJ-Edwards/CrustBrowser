@@ -10,47 +10,37 @@
 // It reuses `network::get_with_status()` so it can read fingerprints that live in
 // error pages (a dangling GitHub Pages host answers 404 with its takeover string).
 
-use serde::Serialize;
+use std::sync::LazyLock;
+
+use serde::{Deserialize, Serialize};
 
 use crate::network;
 
+// Takeover fingerprints are loaded from a shared data file
+// (data/takeover_fingerprints.json) kept byte-for-byte identical to PortIntel's
+// copy, so the two never drift. Embedded at build time to keep the binary
+// self-contained.
+#[derive(Deserialize)]
 pub struct Service {
-    pub name: &'static str,
-    pub cnames: &'static [&'static str],
-    pub fingerprints: &'static [&'static str],
+    #[serde(rename = "service")]
+    pub name: String,
+    pub cnames: Vec<String>,
+    pub fingerprints: Vec<String>,
     // True when the hostname no longer resolving is itself the takeover signal.
     pub nxdomain: bool,
 }
 
-pub const SERVICES: &[Service] = &[
-    Service { name: "GitHub Pages", cnames: &[".github.io"],
-        fingerprints: &["There isn't a GitHub Pages site here"], nxdomain: false },
-    Service { name: "AWS S3", cnames: &[".s3.amazonaws.com", ".s3-website", ".amazonaws.com"],
-        fingerprints: &["NoSuchBucket", "The specified bucket does not exist"], nxdomain: false },
-    Service { name: "Heroku", cnames: &[".herokuapp.com", ".herokudns.com", ".herokussl.com"],
-        fingerprints: &["No such app", "herokucdn.com/error-pages/no-such-app.html"], nxdomain: false },
-    Service { name: "Fastly", cnames: &[".fastly.net"],
-        fingerprints: &["Fastly error: unknown domain"], nxdomain: false },
-    Service { name: "Shopify", cnames: &[".myshopify.com"],
-        fingerprints: &["Sorry, this shop is currently unavailable"], nxdomain: false },
-    Service { name: "Surge.sh", cnames: &[".surge.sh"],
-        fingerprints: &["project not found"], nxdomain: false },
-    Service { name: "Bitbucket", cnames: &[".bitbucket.io"],
-        fingerprints: &["Repository not found"], nxdomain: false },
-    Service { name: "Ghost", cnames: &[".ghost.io"],
-        fingerprints: &["The thing you were looking for is no longer here", "Domain error"], nxdomain: false },
-    Service { name: "Zendesk", cnames: &[".zendesk.com"],
-        fingerprints: &["Help Center Closed"], nxdomain: false },
-    Service { name: "Pantheon", cnames: &[".pantheonsite.io"],
-        fingerprints: &["The gods are wise", "404 error unknown site!"], nxdomain: false },
-    Service { name: "Tumblr", cnames: &[".domains.tumblr.com"],
-        fingerprints: &["Whatever you were looking for doesn't currently exist at this address"], nxdomain: false },
-    Service { name: "Microsoft Azure",
-        cnames: &[".azurewebsites.net", ".cloudapp.net", ".trafficmanager.net", ".blob.core.windows.net"],
-        fingerprints: &["404 Web Site not found"], nxdomain: true },
-    Service { name: "Wordpress", cnames: &[".wordpress.com"],
-        fingerprints: &["Do you want to register"], nxdomain: false },
-];
+#[derive(Deserialize)]
+struct FingerprintsFile {
+    services: Vec<Service>,
+}
+
+pub static SERVICES: LazyLock<Vec<Service>> = LazyLock::new(|| {
+    let raw = include_str!("../data/takeover_fingerprints.json");
+    serde_json::from_str::<FingerprintsFile>(raw)
+        .expect("data/takeover_fingerprints.json is valid JSON")
+        .services
+});
 
 #[derive(Serialize, Debug, Clone)]
 pub struct TakeoverVerdict {
@@ -62,12 +52,12 @@ pub struct TakeoverVerdict {
 
 pub fn match_service(target: &str) -> Option<&'static Service> {
     let t = target.trim().trim_end_matches('.').to_lowercase();
-    SERVICES.iter().find(|s| s.cnames.iter().any(|c| t.contains(c)))
+    SERVICES.iter().find(|s| s.cnames.iter().any(|c| t.contains(c.as_str())))
 }
 
 pub fn body_indicates_takeover(service: &Service, body: &str) -> bool {
     let low = body.to_lowercase();
-    service.fingerprints.iter().any(|fp| low.contains(&fp.to_lowercase()))
+    service.fingerprints.iter().any(|fp| low.contains(fp.to_lowercase().as_str()))
 }
 
 pub fn check(host: &str) -> TakeoverVerdict {

@@ -10,7 +10,9 @@
 // It reuses `network::get()` for the actual HTTP request and `serde_json`
 // (already a dependency) to parse the RDAP response.
 
-use serde::Serialize;
+use std::sync::LazyLock;
+
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::network;
@@ -31,36 +33,33 @@ pub struct IpInfo {
     pub source: String,               // Which RDAP source answered
 }
 
-// Known hosting / CDN / cloud operators, matched as lowercase substrings against
-// the RDAP network name and org. Kept deliberately broad — a match means "this
-// is infrastructure, a record change here is probably routine", so we'd rather
-// recognise a provider than miss one. First match wins, so order by specificity.
-const KNOWN_HOSTS: &[(&str, &str)] = &[
-    ("cloudflare", "Cloudflare"),
-    ("cloudfront", "Amazon CloudFront"),
-    ("amazon", "Amazon AWS"),
-    ("aws", "Amazon AWS"),
-    ("google", "Google Cloud"),
-    ("gogl", "Google Cloud"),
-    ("goog", "Google Cloud"),
-    ("microsoft", "Microsoft Azure"),
-    ("azure", "Microsoft Azure"),
-    ("msft", "Microsoft Azure"),
-    ("fastly", "Fastly"),
-    ("akamai", "Akamai"),
-    ("linode", "Akamai (Linode)"),
-    ("vercel", "Vercel"),
-    ("netlify", "Netlify"),
-    ("digitalocean", "DigitalOcean"),
-    ("digital ocean", "DigitalOcean"),
-    ("ovh", "OVH"),
-    ("hetzner", "Hetzner"),
-    ("github", "GitHub"),
-    ("oracle", "Oracle Cloud"),
-    ("render", "Render"),
-    ("heroku", "Heroku"),
-    ("digital realty", "Digital Realty"),
-];
+// Known hosting / CDN / cloud operators are loaded from a shared data file
+// (data/known_hosts.json) that is kept byte-for-byte identical to PortIntel's
+// copy, so classification never drifts between the two. Embedded at build time
+// so the binary stays self-contained. A name match means "this is
+// infrastructure, a record change here is probably routine".
+#[derive(Deserialize)]
+struct NameRule {
+    #[serde(rename = "match")]
+    pattern: String,
+    provider: String,
+}
+
+#[derive(Deserialize)]
+struct KnownHostsFile {
+    names: Vec<NameRule>,
+}
+
+static KNOWN_HOSTS: LazyLock<Vec<(String, String)>> = LazyLock::new(|| {
+    let raw = include_str!("../data/known_hosts.json");
+    let parsed: KnownHostsFile =
+        serde_json::from_str(raw).expect("data/known_hosts.json is valid JSON");
+    parsed
+        .names
+        .into_iter()
+        .map(|n| (n.pattern.to_lowercase(), n.provider))
+        .collect()
+});
 
 // Look up an IP over the network. Validates the address, queries RDAP, and
 // parses the response. Network errors and unallocated IPs surface as Err.
@@ -114,9 +113,9 @@ fn classify(name: Option<&str>, org: Option<&str>, handle: Option<&str>) -> Opti
         handle.unwrap_or("")
     )
     .to_lowercase();
-    for (needle, canonical) in KNOWN_HOSTS {
+    for (needle, canonical) in KNOWN_HOSTS.iter() {
         if haystack.contains(needle) {
-            return Some((*canonical).to_string());
+            return Some(canonical.clone());
         }
     }
     None
