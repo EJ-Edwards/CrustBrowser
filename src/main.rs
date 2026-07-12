@@ -5,6 +5,8 @@ mod parsar;   // Parses raw HTML into usable data (title, links, text)
 mod search;   // Builds search engine URLs (Google, Bing, etc.)
 mod utilts;   // Commands, welcome message, and help menu
 mod render;   // Handles displaying pages nicely in the terminal
+mod ipcheck;  // IP → RDAP/WHOIS lookup + known-hosting-provider classification
+mod takeover; // Subdomain-takeover prober (fetch + fingerprint match)
 
 // Standard library imports
 use std::io::{self, Write};
@@ -75,7 +77,62 @@ fn navigate(url: &str) -> Option<(ParsedPage, String)> {
     }
 }
 
+// Non-interactive IP check: `crust-browser ipcheck <ip> [--json]`.
+// This is the "internal check" entry point — another program (e.g. PortIntel's
+// monitor pipeline) can shell out to it to learn who owns an IP and whether it
+// belongs to a known hosting provider, without opening the interactive browser.
+// Returns exit code 0 on success, 1 on lookup failure.
+fn run_ipcheck_cli(args: &[String]) -> i32 {
+    let ip = &args[2];
+    let json = args.iter().any(|a| a == "--json");
+    match ipcheck::lookup(ip) {
+        Ok(info) => {
+            if json {
+                println!("{}", serde_json::to_string(&info).unwrap_or_default());
+            } else {
+                ipcheck::print_human(&info);
+            }
+            0
+        }
+        Err(e) => {
+            if json {
+                println!("{}", serde_json::json!({ "ip": ip, "error": e }));
+            } else {
+                eprintln!("  Error: {}", e);
+            }
+            1
+        }
+    }
+}
+
+// Non-interactive takeover check: `crust-browser takeover-check <host> [--json]`.
+fn run_takeover_cli(args: &[String]) -> i32 {
+    let host = &args[2];
+    let json = args.iter().any(|a| a == "--json");
+    let verdict = takeover::check(host);
+    if json {
+        println!("{}", serde_json::to_string(&verdict).unwrap_or_default());
+    } else {
+        takeover::print_human(&verdict);
+    }
+    // Exit 2 signals "vulnerable" so a caller can branch on the exit code.
+    if verdict.vulnerable {
+        2
+    } else {
+        0
+    }
+}
+
 fn main() {
+    // Handle non-interactive subcommands before starting the REPL.
+    let args: Vec<String> = std::env::args().collect();
+    if args.len() >= 3 && args[1] == "ipcheck" {
+        std::process::exit(run_ipcheck_cli(&args));
+    }
+    if args.len() >= 3 && args[1] == "takeover-check" {
+        std::process::exit(run_takeover_cli(&args));
+    }
+
     // Show the welcome message when the browser starts
     welcome_message();
 
@@ -98,9 +155,13 @@ fn main() {
 
         // Read whatever the user types
         let mut input = String::new();
-        if io::stdin().read_line(&mut input).is_err() {
-            println!("  {} Failed to read input.", "Error:".red().bold());
-            continue;
+        match io::stdin().read_line(&mut input) {
+            Ok(0) => break, // EOF (piped input exhausted) — exit cleanly
+            Ok(_) => {}
+            Err(_) => {
+                println!("  {} Failed to read input.", "Error:".red().bold());
+                continue;
+            }
         }
 
         // Skip empty input
@@ -352,6 +413,21 @@ fn main() {
                 } else {
                     println!("  {}", "Navigate to a page first.".yellow());
                 }
+            }
+
+            // Look up who owns an IP (RDAP/WHOIS) and whether it's a known host
+            Command::Ip(addr) => {
+                println!("  {} {}", "Looking up:".cyan(), addr);
+                match ipcheck::lookup(&addr) {
+                    Ok(info) => ipcheck::print_human(&info),
+                    Err(e) => println!("  {} {}", "Error:".red().bold(), e),
+                }
+            }
+
+            // Check a hostname for a dangling / claimable subdomain-takeover target
+            Command::Takeover(host) => {
+                println!("  {} {}", "Checking:".cyan(), host);
+                takeover::print_human(&takeover::check(&host));
             }
 
             // Save page content to a file
